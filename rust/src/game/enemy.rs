@@ -23,6 +23,16 @@ impl Enemy {
         delta_time: f32
     ) {
         let dx = target_x - self.x;
-        let dy = 
+        let dy = target_y - self.y;
+
+        let distance = (dx * dx + dy * dy).sqrt();
+
+        if distance == 0.0 {
+            return;
+        }
+        let direction_x = dx/distance;
+        let direction_y = dy/distance;
+        self.x += direction_x * self.speed * delta_time;
+        self.y += direction_y * self.speed * delta_time;
     }
 }

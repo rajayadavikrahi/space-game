@@ -1,86 +1,114 @@
 mod api;
 mod game;
+mod server;
 
-use std::sync::{
-    Arc, 
-    Mutex
-};
+use std::sync::Arc;
 
 use axum::{
-    http::Method,
-    routing::{get, post},
-    Router
+    routing::get,
+    Router,
 };
+use std::path::PathBuf;
+use tower_http::services::ServeDir;
 
-use tower_http::cors::{
-    Any,
-    CorsLayer
-};
+use tokio::sync::RwLock;
 
-use api::handlers::{
-    get_game,
-    move_player,
-    reset_game,
-    start_game,
+use api::handler::{
     websocket_handler,
-    SharedGame
+    SharedGameServer,
 };
-use game::world::Game;
+
+use server::GameServer;
 
 #[tokio::main]
 async fn main() {
-    let game = Game::new();
 
-    let shared_game: SharedGame = Arc::new(Mutex::new(game));
-    let cors = CorsLayer::new().allow_origin(Any).allow_methods([
-        Method::GET,
-        Method::POST
-    ])
-    .allow_headers(Any);
+    // ======================================
+    // CREATE GAME SERVER
+    // ======================================
 
-    let app = Router::new()
-        .route(
-            "/api/game",
-            get(get_game),
-        )
-        .route(
-            "/api/game/start",
-            post(start_game),
-        )
-        .route(
-            "/api/game/reset",
-            post(reset_game),
-        )
-        .route(
-            "/api/game/move",
-            post(move_player),
-        )
-        .route(
-            "/ws",
-            get(websocket_handler),
-        )
-        .layer(cors)
-        .with_state(shared_game);
+    let game_server =
+        GameServer::new();
 
-    let address = "127.0.0.1:3000";
+    // ======================================
+    // SHARE SERVER STATE
+    // ======================================
 
-    println!("======================");
-    println!("     VOID RUNNER");
-    println!("======================");
-    println!();
+    let shared_server:
+        SharedGameServer =
+            Arc::new(
+                RwLock::new(
+                    game_server
+                )
+            );
+
+    // ======================================
+    // ROUTER
+    // ======================================
+
+    let client_path =
+        PathBuf::from("../client");
+
+    let app =
+        Router::new()
+
+            .route(
+                "/ws",
+                get(
+                    websocket_handler
+                ),
+            )
+
+            .fallback_service(
+                ServeDir::new(client_path)
+            )
+
+            .with_state(
+                shared_server
+            );
+
+    // ======================================
+    // SERVER ADDRESS
+    // ======================================
+
+    let address =
+        "127.0.0.1:3000";
+
     println!(
-        "HTTP:      http://{}",
-        address
+        "======================"
     );
+
+    println!(
+        "      VOID RUNNER"
+    );
+
+    println!(
+        "======================"
+    );
+
+    println!();
+
     println!(
         "WebSocket: ws://{}/ws",
         address
     );
 
+    println!();
+
+    // ======================================
+    // TCP LISTENER
+    // ======================================
+
     let listener =
-        tokio::net::TcpListener::bind(address)
-            .await
-            .unwrap();
+        tokio::net::TcpListener::bind(
+            address
+        )
+        .await
+        .unwrap();
+
+    // ======================================
+    // START SERVER
+    // ======================================
 
     axum::serve(
         listener,
@@ -88,5 +116,4 @@ async fn main() {
     )
     .await
     .unwrap();
-}
 }

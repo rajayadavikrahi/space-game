@@ -2,58 +2,92 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Void Runner</title>
-    <link rel="stylesheet" href="style.css">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>VOID RUNNER</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
 </head>
+
 <body>
-    <main class="game-container">
-        <header class="game-header">
+
+    <div id="gameContainer">
+
+        <div id="hud">
+
             <div>
-                <h1>Void Runner</h1>
-                <p>Survive. collect. escape</p>
+                SCORE:
+                <span id="score">
+                    0
+                </span>
             </div>
-            <div class="score-container">
-                <span>Score</span>
-                <strong id="score">0</strong>
-            </div>
-        </header>
-        <section class="game-wrapper">
-            <canvas id="gameCanvas" width="900" height="600"></canvas>
-            <div id="startScreen" class="overlay">
-                <div class="menu">
-                    <h2>Void Runner</h2>
-                    <p>
-                        Survive as long as possible
-                        <br>
-                        collect energy. avoid enimes.
-                    </p>
-                    <div class="controls">
-                        <span>WASD</span>
-                        <span>or</span>
-                        <span>Arrow keys</span>
-                    </div>
-                    <button id="startButton">start game</button>
-                </div>
-            </div>
-            <div id="gameOverScreen" class="overlay hidden">
-                <div class="menu">
-                    <h2>game over</h2>
-                    <p>your score</p>
-                    <div class="final-socre", id="finalScore">
-                        0
-                    </div>
-                    <button id="restartButton">
-                        play again
-                    </button>
-                </div>
-            </div>
-        </section>
-        <footer>
-            <span>void runner</span>
-            <span>build with rust + html + js</span>
-        </footer>
-    </main>
-    <script src="game.js"></script>
+
+        </div>
+
+        <canvas
+            id="gameCanvas"
+            width="900"
+            height="600"
+        ></canvas>
+
+        <!-- START SCREEN -->
+
+        <div
+            id="startScreen"
+            class="overlay"
+        >
+
+            <h1>
+                VOID RUNNER
+            </h1>
+
+            <p>
+                Collect energy.
+                Avoid the enemies.
+            </p>
+
+            <button id="startButton">
+                START GAME
+            </button>
+
+        </div>
+
+        <!-- GAME OVER -->
+
+        <div
+            id="gameOverScreen"
+            class="overlay hidden"
+        >
+
+            <h1>
+                GAME OVER
+            </h1>
+
+            <p>
+                Score:
+                <span id="finalScore">
+                    0
+                </span>
+            </p>
+
+            <button id="restartButton">
+                PLAY AGAIN
+            </button>
+
+        </div>
+
+    </div>
+
+    <script
+        src="game.js"
+    ></script>
+
 </body>
 </html>
