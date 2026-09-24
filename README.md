@@ -4,7 +4,7 @@ it is a browser-based survival game built to practice game development, Rust bac
 
 ## Decription
 This is a simple survival game where the player controls a character, collects energy, & avoid enemy that continus chase the player  this game build on html, css, javascript, rust, axum and websocket. i built the frontend using html css & javascript. and game login and server side state are handle by rust.
-
+it is a browser-based survival game built to practice game development you have to douch the enemy and collect the food, and you will get different power such as 2x speed, 2x score, shifty shield for protection, it has light, dark and neon theme which works perfect, has a menu option in sidebar for controlling all feature of the game. that increase your points, Rust backend development, websockets, real-time state management, and client-server architecture.
 
 the rust backend is responsible for:
 - player movement
