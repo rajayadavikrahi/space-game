@@ -19,6 +19,13 @@ the rust backend is responsible for:
 - websocket communication
 - player sessions
 
+## screenshort 
+### Demo 1
+![demo 1](client/public/demo1.png)
+
+### Demo 2
+![demo 2](client/public/demo2.png)
+
 the frontend is mainly responsiable for rendering the game and sending player input to the rust. the current architectuere uses a `GameServer` containing multiple player sessions:
 
 ```text

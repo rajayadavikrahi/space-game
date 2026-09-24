@@ -3,7 +3,7 @@ services:
     name: voidrunner
     runtime: docker
     plan: free
-    dockerfilePath: ./rust/Dockerfile
+    dockerfilePath: ./Dockerfile
     dockerContext: ./
     healthCheckPath: /
     envVars:

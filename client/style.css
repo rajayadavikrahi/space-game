@@ -384,6 +384,24 @@ body.theme-light .sidebar-header h2 {
     color: #00cc6a;
 }
 
+body.theme-light #hud {
+    background: #fff;
+    border-color: #ddd;
+}
+
+body.theme-light .hud-item {
+    background: #f0f0f0;
+    border-color: #ccc;
+}
+
+body.theme-light .hud-item span {
+    color: #00b25c;
+}
+
+body.theme-light #powerupStatus.empty {
+    color: #999;
+}
+
 body.theme-light canvas {
     background: #f5f5f5;
     border-color: #ddd;
@@ -411,6 +429,11 @@ body.theme-neon canvas {
 
 body.theme-neon .hud-item {
     background: rgba(0, 255, 136, 0.1);
+    border-color: #00ff88;
+}
+
+body.theme-neon #hud {
+    background: #0f0f0f;
     border-color: #00ff88;
 }
 
