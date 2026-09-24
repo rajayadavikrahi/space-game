@@ -44,10 +44,6 @@ use crate::{
 pub type SharedGameServer =
     Arc<RwLock<GameServer>>;
 
-// ==========================================
-// CLIENT → SERVER
-// ==========================================
-
 #[derive(
     Debug,
     Deserialize,
@@ -65,11 +61,11 @@ pub enum ClientMessage {
         direction_x: f32,
         direction_y: f32,
     },
-}
 
-// ==========================================
-// SERVER → CLIENT
-// ==========================================
+    Difficulty {
+        difficulty: String,
+    },
+}
 
 #[derive(
     Debug,
@@ -89,10 +85,6 @@ pub enum ServerMessage {
     },
 }
 
-// ==========================================
-// GAME RESPONSE
-// ==========================================
-
 #[derive(
     Debug,
     Serialize,
@@ -108,6 +100,12 @@ pub struct GameResponse {
 
     pub enemies:
         Vec<PositionResponse>,
+
+    pub powerups:
+        Vec<PowerUpResponse>,
+
+    pub active_powerup:
+        Option<String>,
 }
 
 #[derive(
@@ -122,13 +120,24 @@ pub struct PositionResponse {
     pub size: f32,
 }
 
-// ==========================================
-// WEBSOCKET ENTRY POINT
-// ==========================================
+#[derive(
+    Debug,
+    Serialize,
+)]
+pub struct PowerUpResponse {
+    pub x: f32,
+
+    pub y: f32,
+
+    pub size: f32,
+
+    pub kind: String,
+
+    pub duration: f32,
+}
 
 pub async fn websocket_handler(
     ws: WebSocketUpgrade,
-
     State(server): State<
         SharedGameServer
     >,
@@ -143,13 +152,8 @@ pub async fn websocket_handler(
     )
 }
 
-// ==========================================
-// SOCKET
-// ==========================================
-
 async fn handle_socket(
     socket: WebSocket,
-
     server: SharedGameServer,
 ) {
     let (
@@ -157,20 +161,12 @@ async fn handle_socket(
         mut receiver,
     ) = socket.split();
 
-    // ======================================
-    // CREATE PLAYER SESSION
-    // ======================================
-
     let player_id = {
         let mut server =
             server.write().await;
 
         server.create_session()
     };
-
-    // ======================================
-    // SEND PLAYER ID
-    // ======================================
 
     let connected_message =
         ServerMessage::Connected {
@@ -218,35 +214,19 @@ async fn handle_socket(
         return;
     }
 
-    // ======================================
-    // CURRENT INPUT
-    // ======================================
-
     let mut direction_x =
         0.0_f32;
 
     let mut direction_y =
         0.0_f32;
 
-    // ======================================
-    // GAME TICKER
-    // ======================================
-
     let mut ticker =
         interval(
             Duration::from_millis(16)
         );
 
-    // ======================================
-    // MAIN SOCKET LOOP
-    // ======================================
-
     loop {
         tokio::select! {
-
-            // ==============================
-            // CLIENT MESSAGE
-            // ==============================
 
             message =
                 receiver.next() => {
@@ -289,10 +269,6 @@ async fn handle_socket(
                     _ => {}
                 }
             }
-
-            // ==============================
-            // GAME TICK
-            // ==============================
 
             _ = ticker.tick() => {
 
@@ -358,10 +334,6 @@ async fn handle_socket(
         }
     }
 
-    // ======================================
-    // DISCONNECT CLEANUP
-    // ======================================
-
     cleanup_session(
         &server,
         player_id,
@@ -369,22 +341,12 @@ async fn handle_socket(
     .await;
 }
 
-// ==========================================
-// CLIENT MESSAGE HANDLER
-// ==========================================
-
 async fn handle_client_message(
     text: &str,
-
     server: &SharedGameServer,
-
     player_id: PlayerId,
-
-    direction_x:
-        &mut f32,
-
-    direction_y:
-        &mut f32,
+    direction_x: &mut f32,
+    direction_y: &mut f32,
 ) {
     let message =
         match serde_json::
@@ -406,13 +368,7 @@ async fn handle_client_message(
         };
 
     match message {
-
-        // ==================================
-        // START
-        // ==================================
-
         ClientMessage::Start => {
-
             let mut server =
                 server.write().await;
 
@@ -425,12 +381,7 @@ async fn handle_client_message(
             }
         }
 
-        // ==================================
-        // RESET
-        // ==================================
-
         ClientMessage::Reset => {
-
             let mut server =
                 server.write().await;
 
@@ -447,10 +398,6 @@ async fn handle_client_message(
             }
         }
 
-        // ==================================
-        // INPUT
-        // ==================================
-
         ClientMessage::Input {
             direction_x:
                 input_x,
@@ -458,7 +405,6 @@ async fn handle_client_message(
             direction_y:
                 input_y,
         } => {
-
             *direction_x =
                 input_x.clamp(
                     -1.0,
@@ -471,16 +417,28 @@ async fn handle_client_message(
                     1.0,
                 );
         }
+
+        ClientMessage::Difficulty {
+            difficulty,
+        } => {
+            let mut server =
+                server.write().await;
+
+            if let Some(game) =
+                server.game_mut(
+                    player_id
+                )
+            {
+                game.set_difficulty(
+                    &difficulty,
+                );
+            }
+        }
     }
 }
 
-// ==========================================
-// CLEANUP
-// ==========================================
-
 async fn cleanup_session(
     server: &SharedGameServer,
-
     player_id: PlayerId,
 ) {
     let mut server =
@@ -491,17 +449,11 @@ async fn cleanup_session(
     );
 }
 
-// ==========================================
-// DOMAIN → DTO
-// ==========================================
-
 fn game_response(
     game: &Game,
 ) -> GameResponse {
-
     let status =
         match game.status() {
-
             GameStatus::Waiting =>
                 "waiting",
 
@@ -511,6 +463,43 @@ fn game_response(
             GameStatus::GameOver =>
                 "game_over",
         };
+
+    let powerups =
+        game.powerups()
+            .iter()
+            .map(
+                |powerup| {
+                    let kind =
+                        match powerup.kind {
+                            crate::game::powerup::kind::PowerUpKind::Shield =>
+                                "shield",
+
+                            crate::game::powerup::kind::PowerUpKind::Speed =>
+                                "speed",
+
+                            crate::game::powerup::kind::PowerUpKind::DoubleScore =>
+                                "double_score",
+                        };
+
+                    PowerUpResponse {
+                        x:
+                            powerup.x,
+
+                        y:
+                            powerup.y,
+
+                        size:
+                            powerup.size,
+
+                        kind:
+                            kind.to_string(),
+
+                        duration:
+                            powerup.duration,
+                    }
+                }
+            )
+            .collect();
 
     GameResponse {
         score:
@@ -522,10 +511,10 @@ fn game_response(
         player:
             PositionResponse {
                 x:
-                    game.player().x,
+                    game.player().x(),
 
                 y:
-                    game.player().y,
+                    game.player().y(),
 
                 size:
                     game.player().size,
@@ -550,10 +539,10 @@ fn game_response(
                     |enemy| {
                         PositionResponse {
                             x:
-                                enemy.x,
+                                enemy.x(),
 
                             y:
-                                enemy.y,
+                                enemy.y(),
 
                             size:
                                 enemy.size,
@@ -561,5 +550,10 @@ fn game_response(
                     }
                 )
                 .collect(),
+
+        powerups,
+
+        active_powerup:
+            game.active_powerup(),
     }
 }

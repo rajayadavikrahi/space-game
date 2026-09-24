@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: voidrunner
+    runtime: docker
+    plan: free
+    dockerfilePath: ./rust/Dockerfile
+    dockerContext: ./
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 10000

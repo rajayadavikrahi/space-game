@@ -18,72 +18,216 @@
 
 <body>
 
-    <div id="gameContainer">
+    <div id="mainContainer">
+        
+        <!-- SIDEBAR -->
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <h2>VOID RUNNER</h2>
+                <button id="toggleSidebar" class="sidebar-toggle">☰</button>
+            </div>
+            
+            <div class="sidebar-content">
+                <!-- Game Stats -->
+                <div class="sidebar-section">
+                    <h3>STATISTICS</h3>
+                    <div class="stat-item">
+                        <span class="stat-label">Current Score:</span>
+                        <span id="sidebarScore" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">High Score:</span>
+                        <span id="highScore" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Games Played:</span>
+                        <span id="gamesPlayed" class="stat-value">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Total Time:</span>
+                        <span id="totalTime" class="stat-value">0s</span>
+                    </div>
+                    <button id="resetStatsButton" class="reset-button">Reset Statistics</button>
+                </div>
 
-        <div id="hud">
+                <!-- Settings -->
+                <div class="sidebar-section">
+                    <h3>SETTINGS</h3>
+                    <div class="setting-item">
+                        <label for="soundToggle">Sound Effects</label>
+                        <input type="checkbox" id="soundToggle" checked>
+                    </div>
+                    <div class="setting-item">
+                        <label for="musicToggle">Background Music</label>
+                        <input type="checkbox" id="musicToggle" checked>
+                    </div>
+                    <div class="setting-item">
+                        <label for="difficultySelect">Difficulty</label>
+                        <select id="difficultySelect">
+                            <option value="easy">Easy</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    <div class="setting-item">
+                        <label for="themeSelect">Theme</label>
+                        <select id="themeSelect">
+                            <option value="dark" selected>Dark</option>
+                            <option value="light">Light</option>
+                            <option value="neon">Neon</option>
+                        </select>
+                    </div>
+                </div>
 
-            <div>
-                SCORE:
-                <span id="score">
-                    0
-                </span>
+                <!-- Controls Info -->
+                <div class="sidebar-section">
+                    <h3>CONTROLS</h3>
+                    <div class="control-info">
+                        <span class="key">W / ↑</span> - Move Up
+                    </div>
+                    <div class="control-info">
+                        <span class="key">S / ↓</span> - Move Down
+                    </div>
+                    <div class="control-info">
+                        <span class="key">A / ←</span> - Move Left
+                    </div>
+                    <div class="control-info">
+                        <span class="key">D / →</span> - Move Right
+                    </div>
+                    <div class="control-info">
+                        <span class="key">P</span> - Pause Game
+                    </div>
+                </div>
+
+                <!-- Help -->
+                <div class="sidebar-section">
+                    <h3>HELP</h3>
+                    <div class="help-content">
+                        <p>Collect green energy orbs to increase your score.</p>
+                        <p>Avoid red enemies that chase you.</p>
+                        <p>Grab power-ups for special abilities:</p>
+                        <ul class="powerup-legend">
+                            <li><span class="powerup-indicator shield"></span> Shield - Temporary invincibility</li>
+                            <li><span class="powerup-indicator speed"></span> Speed - Move faster</li>
+                            <li><span class="powerup-indicator double"></span> 2X - Double score multiplier</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAME AREA -->
+        <div id="gameContainer">
+
+            <canvas
+                id="gameCanvas"
+                width="900"
+                height="600"
+            ></canvas>
+
+            <div id="hud">
+
+                <div class="hud-item">
+                    SCORE:
+                    <span id="score">
+                        0
+                    </span>
+                </div>
+                
+                <div class="hud-item">
+                    TIME:
+                    <span id="gameTime">
+                        0s
+                    </span>
+                </div>
+                
+                <div class="hud-item">
+                    LEVEL:
+                    <span id="gameLevel">
+                        1
+                    </span>
+                </div>
+                
+                <div class="hud-item">
+                    POWER:
+                    <span id="powerupStatus">NONE</span>
+                </div>
+
+            </div>
+
+            <!-- START SCREEN -->
+
+            <div
+                id="startScreen"
+                class="overlay"
+            >
+
+                <h1>
+                    VOID RUNNER
+                </h1>
+
+                <p>
+                    Collect energy.
+                    Avoid the enemies.
+                </p>
+
+                <button id="startButton">
+                    START GAME
+                </button>
+
+            </div>
+
+            <!-- GAME OVER -->
+
+            <div
+                id="gameOverScreen"
+                class="overlay hidden"
+            >
+
+                <h1>
+                    GAME OVER
+                </h1>
+
+                <p>
+                    Score:
+                    <span id="finalScore">
+                        0
+                    </span>
+                </p>
+                
+                <p>
+                    Time:
+                    <span id="finalTime">
+                        0s
+                    </span>
+                </p>
+                
+                <p>
+                    High Score:
+                    <span id="finalHighScore">
+                        0
+                    </span>
+                </p>
+
+                <button id="restartButton">
+                    PLAY AGAIN
+                </button>
+
+            </div>
+            
+            <!-- PAUSE SCREEN -->
+            <div id="pauseScreen" class="overlay hidden">
+                <h1>PAUSED</h1>
+                <button id="resumeButton">RESUME</button>
+                <button id="quitButton">QUIT TO MENU</button>
             </div>
 
         </div>
-
-        <canvas
-            id="gameCanvas"
-            width="900"
-            height="600"
-        ></canvas>
-
-        <!-- START SCREEN -->
-
-        <div
-            id="startScreen"
-            class="overlay"
-        >
-
-            <h1>
-                VOID RUNNER
-            </h1>
-
-            <p>
-                Collect energy.
-                Avoid the enemies.
-            </p>
-
-            <button id="startButton">
-                START GAME
-            </button>
-
-        </div>
-
-        <!-- GAME OVER -->
-
-        <div
-            id="gameOverScreen"
-            class="overlay hidden"
-        >
-
-            <h1>
-                GAME OVER
-            </h1>
-
-            <p>
-                Score:
-                <span id="finalScore">
-                    0
-                </span>
-            </p>
-
-            <button id="restartButton">
-                PLAY AGAIN
-            </button>
-
-        </div>
-
     </div>
+
+    <script
+        src="config.js"
+    ></script>
 
     <script
         src="game.js"

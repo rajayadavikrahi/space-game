@@ -53,6 +53,13 @@ async fn main() {
         Router::new()
 
             .route(
+                "/",
+                get(|| async {
+                    "VOID RUNNER"
+                }),
+            )
+
+            .route(
                 "/ws",
                 get(
                     websocket_handler
@@ -71,8 +78,16 @@ async fn main() {
     // SERVER ADDRESS
     // ======================================
 
+    // Hosting platforms (e.g. Render) inject the
+    // port via the PORT env var. Bind on all
+    // interfaces so the proxy can reach us.
+    let port = std::env::var("PORT")
+        .unwrap_or_else(
+            |_| "3000".to_string()
+        );
+
     let address =
-        "127.0.0.1:3000";
+        format!("0.0.0.0:{}", port);
 
     println!(
         "======================"
