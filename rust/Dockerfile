@@ -1,5 +1,5 @@
 # Build the Rust WebSocket game server
-FROM rust:1.82-slim AS builder
+FROM rust:1.97-slim AS builder
 
 # Keep peak memory low on small build machines
 ENV CARGO_BUILD_JOBS=2 \
