@@ -32,7 +32,7 @@ impl PowerUpSpawner {
         let mut rng = rand::thread_rng();
         let x = rng.gen_range(20.0..width - 20.0);
         let y = rng.gen_range(20.0..height - 20.0);
-        let kind_number = rng.gen_range(0..3);
+        let kind_number = rng.gen_range(0..4);
         let kind = match kind_number {
             0 => PowerUpKind::Shield,
 
@@ -40,12 +40,17 @@ impl PowerUpSpawner {
             // create a Speed power-up.
             1 => PowerUpKind::Speed,
 
+            // If the number is 2:
+            // create a DoubleScore power-up.
+            2 => PowerUpKind::DoubleScore,
+
             // `_` means:
             // "anything else."
             //
             // Since the only remaining possibility
-            // is 2, this becomes DoubleScore.
-            _ => PowerUpKind::DoubleScore,
+            // is 3, this becomes a Lantern, which
+            // refills the lamp.
+            _ => PowerUpKind::Lantern,
         };
         let duration = 5.0;
         let power_up = PowerUp::new(x, y, kind, duration);

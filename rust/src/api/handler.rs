@@ -65,6 +65,11 @@ pub enum ClientMessage {
     Difficulty {
         difficulty: String,
     },
+
+    // The player flipping the lamp switch.
+    Light {
+        on: bool,
+    },
 }
 
 #[derive(
@@ -106,6 +111,28 @@ pub struct GameResponse {
 
     pub active_powerup:
         Option<String>,
+
+    pub light:
+        LightResponse,
+}
+
+// Everything the browser needs to draw the
+// dark and the lamp in it.
+//
+// `radius` is how far the light currently reaches
+// in pixels, which shrinks as the battery empties.
+#[derive(
+    Debug,
+    Serialize,
+)]
+pub struct LightResponse {
+    pub on: bool,
+
+    pub lit: bool,
+
+    pub battery: f32,
+
+    pub radius: f32,
 }
 
 #[derive(
@@ -434,6 +461,23 @@ async fn handle_client_message(
                 );
             }
         }
+
+        ClientMessage::Light { on } => {
+            let mut server =
+                server.write().await;
+
+            if let Some(game) =
+                server.game_mut(
+                    player_id
+                )
+            {
+                // The lamp lives on the server. The
+                // browser only reports the switch,
+                // and the next state frame tells it
+                // whether the lamp actually lit up.
+                game.set_light(on);
+            }
+        }
     }
 }
 
@@ -479,6 +523,9 @@ fn game_response(
 
                             crate::game::powerup::kind::PowerUpKind::DoubleScore =>
                                 "double_score",
+
+                            crate::game::powerup::kind::PowerUpKind::Lantern =>
+                                "lantern",
                         };
 
                     PowerUpResponse {
@@ -555,5 +602,20 @@ fn game_response(
 
         active_powerup:
             game.active_powerup(),
+
+        light:
+            LightResponse {
+                on:
+                    game.light().is_on(),
+
+                lit:
+                    game.light().is_lit(),
+
+                battery:
+                    game.light().battery(),
+
+                radius:
+                    game.light().radius(),
+            },
     }
 }

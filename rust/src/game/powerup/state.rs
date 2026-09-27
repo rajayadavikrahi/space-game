@@ -30,6 +30,13 @@ impl ActiveEffects {
             PowerUpKind::DoubleScore => {
                 self.double_score_remaining = Some(duration);
             }
+
+            // A lantern is not a timed effect. It
+            // is handled the moment it is picked up,
+            // by refilling the lamp in the collision
+            // check, so there is nothing to store
+            // here.
+            PowerUpKind::Lantern => {}
         }
     }
     pub fn update(

@@ -97,19 +97,24 @@
                     <div class="control-info">
                         <span class="key">P</span> - Pause Game
                     </div>
+                    <div class="control-info">
+                        <span class="key">F</span> - Toggle Lamp
+                    </div>
                 </div>
 
                 <!-- Help -->
                 <div class="sidebar-section">
                     <h3>HELP</h3>
                     <div class="help-content">
-                        <p>Collect green energy orbs to increase your score.</p>
-                        <p>Avoid red enemies that chase you.</p>
+                        <p><strong>The grid is down.</strong> Your lamp is the only light in the arena.</p>
+                        <p>Energy orbs can only be picked up while the lamp is burning, and every orb you collect puts charge back into the battery. Enemies caught in the beam move faster, so the light that lets you see them is also what brings them down on you. Switch the lamp off to slow them down, but in the dark you are nearly blind.</p>
+                        <p>When the battery runs out the lamp dies and only recharges while it is off.</p>
                         <p>Grab power-ups for special abilities:</p>
                         <ul class="powerup-legend">
                             <li><span class="powerup-indicator shield"></span> Shield - Temporary invincibility</li>
                             <li><span class="powerup-indicator speed"></span> Speed - Move faster</li>
                             <li><span class="powerup-indicator double"></span> 2X - Double score multiplier</li>
+                            <li><span class="powerup-indicator lantern"></span> Lantern - Refills the lamp</li>
                         </ul>
                     </div>
                 </div>
@@ -153,6 +158,19 @@
                     <span id="powerupStatus">NONE</span>
                 </div>
 
+                <!-- The lamp is the only light in the
+                     arena, so it gets its own readout. -->
+                <div class="hud-item lamp-item" id="lampHud">
+                    LAMP:
+                    <span id="lampStatus">ON</span>
+                    <span class="battery-bar">
+                        <span
+                            class="battery-fill"
+                            id="lampBattery"
+                        ></span>
+                    </span>
+                </div>
+
             </div>
 
             <!-- START SCREEN -->
@@ -167,8 +185,20 @@
                 </h1>
 
                 <p>
-                    Collect energy.
-                    Avoid the enemies.
+                    The grid is down.
+                </p>
+
+                <p>
+                    Collect energy to keep the lamp charged.
+                </p>
+
+                <p>
+                    The light shows you the enemies.
+                    The light also brings them.
+                </p>
+
+                <p class="start-hint">
+                    Move: WASD / arrows &nbsp;·&nbsp; Lamp: F
                 </p>
 
                 <button id="startButton">

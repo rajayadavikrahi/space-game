@@ -59,12 +59,18 @@ impl Enemy {
     }
 
 
-    // Move enemy toward target.
+    // Move enemy toward target using a speed
+    // multiplier.
+    //
+    // The lamplight uses this: an enemy standing
+    // inside the beam moves faster than one hiding
+    // in the dark.
     pub fn move_towards(
         &mut self,
         target_x: f32,
         target_y: f32,
         delta_time: f32,
+        speed_multiplier: f32,
     ) {
 
         // Create target position.
@@ -91,6 +97,7 @@ impl Enemy {
         let movement =
             direction.scale(
                 self.speed
+                    * speed_multiplier
                     * delta_time,
             );
 
@@ -102,11 +109,56 @@ impl Enemy {
             );
     }
 
+    // Chase the player at the given speed.
     pub fn update(
         &mut self,
         player: &crate::game::player::Player,
         dt: f32,
+        speed_multiplier: f32,
     ) {
-        self.move_towards(player.x(), player.y(), dt);
+        self.move_towards(
+            player.x(),
+            player.y(),
+            dt,
+            speed_multiplier,
+        );
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::game::player::Player;
+
+    // The lamplight hands the world a speed
+    // multiplier, so the enemy has to honour it.
+    #[test]
+    fn a_lured_enemy_closes_faster() {
+        let player = Player::new(100.0, 100.0);
+
+        let mut calm = Enemy::new(0.0, 100.0, 100.0);
+        let mut lured = Enemy::new(0.0, 100.0, 100.0);
+
+        calm.update(&player, 0.1, 1.0);
+        lured.update(&player, 0.1, 1.6);
+
+        assert!(
+            lured.x() > calm.x(),
+            "lured reached {}, calm reached {}",
+            lured.x(),
+            calm.x()
+        );
+    }
+
+    #[test]
+    fn an_enemy_ignores_a_multiplier_of_one() {
+        let player = Player::new(100.0, 100.0);
+
+        let mut a = Enemy::new(0.0, 100.0, 100.0);
+        let mut b = Enemy::new(0.0, 100.0, 100.0);
+
+        a.update(&player, 0.1, 1.0);
+        b.update(&player, 0.1, 1.0);
+
+        assert_eq!(a.x(), b.x());
     }
 }

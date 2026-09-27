@@ -1,4 +1,5 @@
 pub mod collision;
+pub mod light;
 pub mod player;
 pub mod enemy;
 pub mod energy;

@@ -18,6 +18,20 @@ the rust backend is responsible for:
 - game state
 - websocket communication
 - player sessions
+- the lamp battery, its radius and its recharge
+
+## the lamp
+
+the arena is dark and the lamp is the only way to see. this is a real mechanic rather than a colour swap: the battery lives in the server state, the light decides what you can see, and it changes how the game plays.
+
+- the lamp starts switched on and fully charged
+- press `f` to switch it off and on again
+- it drains 5% a second while it burns, and recharges 5% a second while it is off
+- a full charge throws light 270 units out, an empty one only 90, so the pool of light shrinks as the battery dies
+- energy outside the light cannot be picked up at all, and it is worth 25 instead of 10 when you do reach it
+- enemies move 1.6x faster while they are inside the light, so the lamp pulls them in on you
+- a lantern power-up refills the battery and switches the lamp back on
+- the dark and neon themes paint the arena black and cut the light and the beam back out of it, so anything out of reach is invisible. the light theme keeps its bright background and dims whatever the lamp does not reach instead
 
 ## screenshort 
 ### Demo 1

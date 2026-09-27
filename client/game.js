@@ -131,9 +131,49 @@ const resetStatsButton =
         "resetStatsButton"
     );
 
+const lampHudElement =
+    document.getElementById(
+        "lampHud"
+    );
+
+const lampStatusElement =
+    document.getElementById(
+        "lampStatus"
+    );
+
+const lampBatteryElement =
+    document.getElementById(
+        "lampBattery"
+    );
+
 const WS_URL =
     window.VOIDRUNNER_BACKEND_URL ||
     "ws://127.0.0.1:3000/ws";
+
+// ============================================
+// LAMP CONSTANTS
+// ============================================
+//
+// These mirror `rust/src/game/light.rs`. The server
+// owns the real values, these are only used for
+// the frames before the first state message and
+// for drawing the dark.
+
+const MAX_BATTERY = 100;
+
+const MAX_LAMP_RADIUS = 270;
+
+const MIN_LAMP_RADIUS = 90;
+
+// How far you can see with the lamp switched off.
+const AMBIENT_RADIUS = 70;
+
+// Angle of the beam the lamp throws in the
+// direction the player is facing.
+const BEAM_ANGLE = Math.PI / 3.4;
+
+// How black the unlit part of the arena is.
+const DARKNESS_ALPHA = 0.97;
 
 let socket = null;
 
@@ -154,6 +194,12 @@ let keys = {
 
 // Player ship facing (radians), sprite points up
 let playerFacing = 0;
+
+// Local copy of the lamp switch. The server is the
+// real source of truth, this only exists so the
+// screen reacts on the same frame the key is
+// pressed instead of on the next state message.
+let lampOn = true;
 
 // Game statistics
 let gameStats = {
@@ -227,6 +273,13 @@ window.addEventListener(
                 
             case "p":
                 togglePause();
+                event.preventDefault();
+                break;
+
+            // F (or L) works the lamp switch.
+            case "f":
+            case "l":
+                toggleLamp();
                 event.preventDefault();
                 break;
         }
@@ -432,6 +485,144 @@ function sendInput() {
 
 
 // ============================================
+// LAMP
+// ============================================
+//
+// The grid is down and the lamp is the only light
+// in the arena, so the lamp switch is a game
+// mechanic and not a cosmetic toggle:
+//
+// * the lamp burns battery, the server decides
+//   when it dies,
+// * energy orbs can only be collected while the
+//   lamp is burning,
+// * and enemies inside the beam move faster.
+//
+// The server owns the state, this side only reports
+// the switch and draws what comes back.
+
+function lampData() {
+    if (gameState && gameState.light) {
+        return gameState.light;
+    }
+
+    return null;
+}
+
+function currentBattery() {
+    const light = lampData();
+
+    return light ? light.battery : MAX_BATTERY;
+}
+
+// Is the lamp producing light right now?
+function isLampLit() {
+    const light = lampData();
+
+    if (light) {
+        return light.lit;
+    }
+
+    return lampOn;
+}
+
+// How far the light reaches, in pixels. This is
+// the server value, so the beam visibly shrinks as
+// the battery runs down.
+function lampRadius() {
+    const light = lampData();
+
+    if (!light) {
+        return MAX_LAMP_RADIUS;
+    }
+
+    if (!light.lit) {
+        return 0;
+    }
+
+    return light.radius;
+}
+
+function sendLampState(on) {
+    if (
+        !socket ||
+        socket.readyState !==
+            WebSocket.OPEN
+    ) {
+        return;
+    }
+
+    lampOn = on;
+
+    socket.send(
+        JSON.stringify({
+            type: "light",
+
+            on: on,
+        })
+    );
+
+    playSound(on ? "lampOn" : "lampOff");
+}
+
+function toggleLamp() {
+    if (
+        !gameState ||
+        gameState.status !== "running"
+    ) {
+        return;
+    }
+
+    // A dead lamp cannot be switched back on. The
+    // battery has to recharge first, which only
+    // happens while the lamp is off.
+    if (!lampOn && currentBattery() <= 0) {
+        playSound("lampDead");
+        return;
+    }
+
+    sendLampState(!lampOn);
+}
+
+function updateLampHud() {
+    if (!lampHudElement) {
+        return;
+    }
+
+    const battery =
+        currentBattery();
+
+    const lit =
+        isLampLit();
+
+    const percent =
+        Math.max(
+            0,
+            Math.min(
+                1,
+                battery / MAX_BATTERY
+            )
+        );
+
+    if (lampStatusElement) {
+        // DEAD means the battery is flat and the
+        // lamp is recharging in the dark.
+        lampStatusElement.textContent =
+            lit ? "ON" : battery > 0 ? "OFF" : "DEAD";
+    }
+
+    if (lampBatteryElement) {
+        lampBatteryElement.style.width =
+            (percent * 100).toFixed(1) + "%";
+    }
+
+    lampHudElement.classList.toggle("lamp-on", lit);
+    lampHudElement.classList.toggle("lamp-off", !lit);
+    lampHudElement.classList.toggle("lamp-low", lit && percent < 0.25);
+}
+
+
+// ============================================
 // GAME CONTROLS
 // ============================================
 
@@ -504,7 +695,14 @@ function updateHUD() {
 
     if (scoreElement) scoreElement.textContent = gameState.score;
     if (sidebarScoreElement) sidebarScoreElement.textContent = gameState.score;
-    
+
+    // The server decides whether the lamp is lit,
+    // so follow it instead of trusting the key we
+    // pressed a moment ago.
+    if (gameState.light) {
+        lampOn = gameState.light.on;
+    }
+
     // Play a collect sound when the score goes up
     if (gameState.score > gameStats.lastScore) {
         playSound('collect');
@@ -534,6 +732,9 @@ function updateHUD() {
     
     // Update power-up status
     updatePowerUpStatus();
+
+    // Update lamp status
+    updateLampHud();
 }
 
 
@@ -682,6 +883,22 @@ loadSprite("double_score", `
   <text x="32" y="39" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#ffffff">2X</text>
 </svg>`);
 
+loadSprite("lantern", `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="flame" cx="0.5" cy="0.45" r="0.5">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#ffe066"/>
+      <stop offset="1" stop-color="#ff9d00" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="32" cy="32" r="28" fill="#2a2205" stroke="#ffe066" stroke-width="3"/>
+  <path d="M24 18 h16" stroke="#c9a227" stroke-width="3" stroke-linecap="round"/>
+  <path d="M20 20 L14 44 a3 3 0 0 0 3 4 h30 a3 3 0 0 0 3 -4 L44 20 Z" fill="#3a3208" stroke="#c9a227" stroke-width="2" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="14" fill="url(#flame)"/>
+  <path d="M32 24 c4 5 6 8 6 11 a6 6 0 0 1 -12 0 c0 -3 2 -6 6 -11 Z" fill="#fff3c4"/>
+</svg>`);
+
 
 // Draw a loaded SVG sprite centered at (x, y).
 // Returns true when drawn, false if the sprite
@@ -759,6 +976,403 @@ function render() {
     if (gameState.player) {
         drawPlayer();
     }
+
+    // The blackout itself. Everything the lamp
+    // does not reach is painted over in black.
+    drawDarkness();
+
+    // Warm spill from the lamp, drawn on top so
+    // the beam feels like light and not like a
+    // hole in the screen.
+    drawLampGlow();
+}
+
+
+// ============================================
+// LIGHT AND DARKNESS
+// ============================================
+
+// How visible is something at (x, y)?
+//
+// This is what makes the light matter in the light
+// theme, where the arena background stays bright:
+// whatever the lamp does not reach is only a hint.
+function visibilityAt(x, y) {
+    const player =
+        gameState.player;
+
+    if (!player) {
+        return 1;
+    }
+
+    const distance =
+        Math.hypot(
+            x - player.x,
+            y - player.y
+        );
+
+    const radius =
+        lampRadius();
+
+    if (radius <= 0) {
+        // Lamp off. Only a small halo of ambient
+        // light around the player.
+        if (distance <= AMBIENT_RADIUS) {
+            return 0.45;
+        }
+
+        return 0.1;
+    }
+
+    // Fully lit core, then a falloff, then
+    // barely anything.
+    const core = radius * 0.7;
+
+    let level =
+        distance <= core
+            ? 1
+            : distance <= radius
+              ? 1 - 0.4 * ((distance - core) / (radius - core))
+              : 0.25;
+
+    // The beam reaches past the halo, so anything
+    // inside the cone counts as lit even when it
+    // sits outside the radius.
+    //
+    // The cone is worked out from the direction the
+    // ship points, which is the local -y axis of the
+    // sprite, turned by the facing angle.
+    const length = radius * 1.9;
+
+    if (distance <= length && distance > 0) {
+        const along =
+            (x - player.x) * Math.sin(playerFacing) -
+            (y - player.y) * Math.cos(playerFacing);
+
+        const across =
+            (x - player.x) * Math.cos(playerFacing) +
+            (y - player.y) * Math.sin(playerFacing);
+
+        if (
+            along > 0 &&
+            Math.abs(across) <= along * Math.tan(BEAM_ANGLE / 2)
+        ) {
+            level =
+                Math.max(
+                    level,
+                    1 - 0.3 * (distance / length)
+                );
+        }
+    }
+
+    return level;
+}
+
+// The mask is built on a canvas of its own and then
+// laid over the arena.
+//
+// It cannot be painted straight onto the arena:
+// filling with black would destroy the picture
+// underneath, and erasing that black again with
+// `destination-out` only removes it, it does not
+// bring the arena back.
+let darknessCanvas = null;
+let darknessCtx = null;
+
+function darknessMask() {
+    if (
+        !darknessCanvas ||
+        darknessCanvas.width !== canvas.width ||
+        darknessCanvas.height !== canvas.height
+    ) {
+        darknessCanvas =
+            document.createElement("canvas");
+
+        darknessCanvas.width = canvas.width;
+        darknessCanvas.height = canvas.height;
+
+        darknessCtx =
+            darknessCanvas.getContext("2d");
+    }
+
+    return darknessCtx;
+}
+
+// Lay the blackout over the arena, with the lit area
+// and the beam cut out of it.
+//
+// The light theme keeps its bright background, so
+// there `visibilityAt` is enough and the mask is
+// skipped.
+function drawDarkness() {
+    const player =
+        gameState.player;
+
+    if (!player || !ctx) {
+        return;
+    }
+
+    if (settings.theme === "light") {
+        return;
+    }
+
+    const radius =
+        lampRadius();
+
+    const lit =
+        radius > 0;
+
+    // With the lamp off we still get a small
+    // ambient halo, otherwise the player would be
+    // completely blind.
+    const halo =
+        lit
+            ? radius
+            : AMBIENT_RADIUS;
+
+    const mask =
+        darknessMask();
+
+    mask.setTransform(1, 0, 0, 1, 0, 0);
+
+    mask.globalCompositeOperation = "source-over";
+
+    mask.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    mask.fillStyle =
+        "rgba(0, 0, 0, " + DARKNESS_ALPHA + ")";
+
+    mask.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    // Cutting the lit areas out of the mask.
+    mask.globalCompositeOperation = "destination-out";
+
+    punchHalo(
+        mask,
+        player.x,
+        player.y,
+        halo,
+        lit ? 0.97 : 0.6
+    );
+
+    if (lit) {
+        punchBeam(
+            mask,
+            player.x,
+            player.y,
+            playerFacing,
+            BEAM_ANGLE,
+            radius * 1.9
+        );
+    }
+
+    ctx.drawImage(
+        darknessCanvas,
+        0,
+        0
+    );
+}
+
+// Erase a soft circle out of the mask.
+function punchHalo(target, x, y, radius, strength) {
+    if (radius <= 0) {
+        return;
+    }
+
+    const gradient =
+        target.createRadialGradient(
+            x,
+            y,
+            0,
+            x,
+            y,
+            radius
+        );
+
+    gradient.addColorStop(0, "rgba(0, 0, 0, " + strength + ")");
+    gradient.addColorStop(0.55, "rgba(0, 0, 0, " + strength * 0.55 + ")");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+    target.fillStyle = gradient;
+
+    target.beginPath();
+
+    target.arc(
+        x,
+        y,
+        radius,
+        0,
+        Math.PI * 2
+    );
+
+    target.fill();
+}
+
+// Erase a soft cone of darkness in front of the
+// player, so the lamp is directional.
+//
+// The cone is built along the local -y axis,
+// which is the way the player sprite points, so
+// the beam always leaves the nose of the ship.
+function punchBeam(target, x, y, angle, spread, length) {
+    target.save();
+
+    target.translate(x, y);
+    target.rotate(angle);
+
+    const gradient =
+        target.createLinearGradient(
+            0,
+            0,
+            0,
+            -length
+        );
+
+    gradient.addColorStop(0, "rgba(0, 0, 0, 0.95)");
+    gradient.addColorStop(0.45, "rgba(0, 0, 0, 0.6)");
+    gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+    target.fillStyle = gradient;
+
+    target.beginPath();
+
+    target.moveTo(0, 0);
+
+    target.arc(
+        0,
+        0,
+        length,
+        -Math.PI / 2 - spread / 2,
+        -Math.PI / 2 + spread / 2
+    );
+
+    target.closePath();
+
+    target.fill();
+
+    target.restore();
+}
+
+// Warm light spilling out of the lamp.
+//
+// A dying battery flickers, which is the warning
+// that the dark is about to take over.
+function drawLampGlow() {
+    const player =
+        gameState.player;
+
+    const radius =
+        lampRadius();
+
+    if (!player || radius <= 0 || !ctx) {
+        return;
+    }
+
+    const now =
+        typeof performance !== "undefined"
+            ? performance.now()
+            : Date.now();
+
+    const battery =
+        currentBattery() / MAX_BATTERY;
+
+    // A healthy lamp is steady, a dying one
+    // flickers.
+    const flicker =
+        battery < 0.3
+            ? 0.75 +
+              0.25 *
+                  Math.abs(
+                      Math.sin(now / 60)
+                  )
+            : 1;
+
+    const strength =
+        (0.05 + 0.13 * battery) * flicker;
+
+    ctx.save();
+
+    ctx.globalCompositeOperation = "lighter";
+
+    const gradient =
+        ctx.createRadialGradient(
+            player.x,
+            player.y,
+            0,
+            player.x,
+            player.y,
+            radius
+        );
+
+    gradient.addColorStop(0, "rgba(255, 236, 180, " + strength + ")");
+    gradient.addColorStop(0.6, "rgba(255, 214, 130, " + strength * 0.35 + ")");
+    gradient.addColorStop(1, "rgba(255, 200, 100, 0)");
+
+    ctx.fillStyle = gradient;
+
+    ctx.beginPath();
+
+    ctx.arc(
+        player.x,
+        player.y,
+        radius,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+    // Beam highlight, so the direction the player
+    // is looking is obvious.
+    ctx.globalAlpha = 0.5 * flicker;
+
+    ctx.save();
+
+    ctx.translate(player.x, player.y);
+    ctx.rotate(playerFacing);
+
+    const beam =
+        ctx.createLinearGradient(
+            0,
+            0,
+            0,
+            -radius * 1.6
+        );
+
+    beam.addColorStop(0, "rgba(255, 245, 210, " + strength + ")");
+    beam.addColorStop(1, "rgba(255, 245, 210, 0)");
+
+    ctx.fillStyle = beam;
+
+    ctx.beginPath();
+
+    ctx.moveTo(0, 0);
+
+    ctx.arc(
+        0,
+        0,
+        radius * 1.6,
+        -Math.PI / 2 - BEAM_ANGLE / 2,
+        -Math.PI / 2 + BEAM_ANGLE / 2
+    );
+
+    ctx.closePath();
+
+    ctx.fill();
+
+    ctx.restore();
+
+    ctx.restore();
 }
 
 
@@ -900,6 +1514,10 @@ function drawEnergy() {
         return;
     }
 
+    // Orbs outside the lamp are only a hint.
+    ctx.globalAlpha =
+        visibilityAt(energy.x, energy.y);
+
     ctx.shadowBlur = 20;
     ctx.shadowColor = "#00ff88";
 
@@ -908,6 +1526,7 @@ function drawEnergy() {
 
     if (drawSprite("energy", energy.x, energy.y, width, height, 0)) {
         ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
         return;
     }
 
@@ -929,6 +1548,8 @@ function drawEnergy() {
     ctx.fill();
 
     ctx.closePath();
+
+    ctx.globalAlpha = 1;
 }
 
 
@@ -951,6 +1572,11 @@ function drawPowerUps() {
     ) {
         if (!powerup) continue;
         
+        // Power-ups the lamp does not reach are
+        // hard to make out.
+        ctx.globalAlpha =
+            visibilityAt(powerup.x, powerup.y);
+        
         // Decide how the power-up should
         // look based on its type.
         //
@@ -959,6 +1585,7 @@ function drawPowerUps() {
         // "shield"
         // "speed"
         // "double_score"
+        // "lantern"
         const style =
             getPowerUpStyle(
                 powerup.kind
@@ -972,6 +1599,7 @@ function drawPowerUps() {
 
         if (drawSprite(powerup.kind, powerup.x, powerup.y, width, height, 0)) {
             ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
             continue;
         }
 
@@ -999,6 +1627,8 @@ function drawPowerUps() {
         // If we don't reset it, later objects
         // may accidentally get the same glow.
         ctx.shadowBlur = 0;
+
+        ctx.globalAlpha = 1;
 
         // Draw a small letter inside the circle.
         drawPowerUpLabel(
@@ -1028,11 +1658,20 @@ function getPowerUpStyle(
                 label: "⚡",
             };
 
-        case "double_score":
-            return {
-                color: "#cc55ff",
-                label: "2X",
-            };
+            case "double_score":
+                return {
+                    color: "#cc55ff",
+                    label: "2X",
+                };
+
+            // The lantern. This one is not a
+            // stat boost, it refills the lamp.
+            case "lantern":
+                return {
+                    color: "#ffe066",
+                    label: "L",
+                };
+
 
         // If the server somehow sends
         // an unknown power-up type,
@@ -1090,6 +1729,13 @@ function drawEnemies() {
     ) {
         if (!enemy) continue;
 
+        // This is the blackout rule in one line: an
+        // enemy the lamp does not reach is barely
+        // there, so switching the light off is how
+        // you buy yourself a moment.
+        ctx.globalAlpha =
+            visibilityAt(enemy.x, enemy.y);
+
         ctx.shadowBlur = 15;
         ctx.shadowColor = "#ff3355";
 
@@ -1098,6 +1744,7 @@ function drawEnemies() {
 
         if (drawSprite("enemy", enemy.x, enemy.y, width, height, 0)) {
             ctx.shadowBlur = 0;
+            ctx.globalAlpha = 1;
             continue;
         }
 
@@ -1119,6 +1766,8 @@ function drawEnemies() {
         ctx.fill();
 
         ctx.closePath();
+
+        ctx.globalAlpha = 1;
     }
 }
 
@@ -1371,6 +2020,34 @@ function playSound(type) {
                 gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
                 oscillator.start(audioContext.currentTime);
                 oscillator.stop(audioContext.currentTime + 0.2);
+                break;
+            case 'lampOn':
+                oscillator.type = "square";
+                oscillator.frequency.setValueAtTime(320, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(640, audioContext.currentTime + 0.06);
+                gainNode.gain.setValueAtTime(0.06, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.08);
+                break;
+            case 'lampOff':
+                oscillator.type = "square";
+                oscillator.frequency.setValueAtTime(640, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(320, audioContext.currentTime + 0.06);
+                gainNode.gain.setValueAtTime(0.06, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.08);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.08);
+                break;
+            case 'lampDead':
+                // The click of a lamp that refuses to
+                // come on while the battery is flat.
+                oscillator.type = "square";
+                oscillator.frequency.setValueAtTime(180, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.05, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.05);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.05);
                 break;
             case 'gameover':
                 oscillator.frequency.setValueAtTime(200, audioContext.currentTime);

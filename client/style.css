@@ -244,6 +244,11 @@ body {
     box-shadow: 0 0 8px #cc55ff;
 }
 
+.powerup-indicator.lantern {
+    background: #ffe066;
+    box-shadow: 0 0 8px #ffe066;
+}
+
 /* GAME CONTAINER */
 #gameContainer {
     position: relative;
@@ -311,6 +316,90 @@ canvas {
     text-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
 }
 
+/* LAMP HUD */
+.lamp-item {
+    gap: 10px;
+}
+
+.battery-bar {
+    display: inline-block;
+    width: 70px;
+    height: 10px;
+    border: 1px solid #444;
+    border-radius: 5px;
+    background: #000;
+    overflow: hidden;
+}
+
+.battery-fill {
+    display: block;
+    height: 100%;
+    width: 100%;
+    background: #ffe066;
+    box-shadow: 0 0 10px rgba(255, 224, 102, 0.7);
+    transition: width 0.1s linear;
+}
+
+#lampStatus {
+    color: #ffe066;
+    min-width: 42px;
+}
+
+/* Lamp is burning. */
+.lamp-item.lamp-on {
+    border-color: rgba(255, 224, 102, 0.6);
+}
+
+/* Lamp is switched off, the player is in the dark. */
+.lamp-item.lamp-off {
+    border-color: #3a3a3a;
+}
+
+.lamp-item.lamp-off #lampStatus {
+    color: #888;
+}
+
+.lamp-item.lamp-off .battery-fill {
+    background: #4a4a4a;
+    box-shadow: none;
+}
+
+/* Battery nearly flat: warn before the dark hits. */
+.lamp-item.lamp-low {
+    animation: lampWarning 0.8s ease-in-out infinite;
+}
+
+.lamp-item.lamp-low .battery-fill {
+    background: #ff3355;
+    box-shadow: 0 0 10px rgba(255, 51, 85, 0.8);
+}
+
+.lamp-item.lamp-low #lampStatus {
+    color: #ff3355;
+}
+
+@keyframes lampWarning {
+    0%, 100% {
+        border-color: rgba(255, 51, 85, 0.35);
+    }
+
+    50% {
+        border-color: rgba(255, 51, 85, 1);
+    }
+}
+
+body.theme-light .lamp-item.lamp-off {
+    border-color: #ddd;
+}
+
+body.theme-light #lampStatus {
+    color: #b58900;
+}
+
+body.theme-neon .lamp-item.lamp-on {
+    border-color: #ffe066;
+}
+
 /* OVERLAY STYLES */
 .overlay {
     position: absolute;
@@ -358,6 +447,14 @@ canvas {
     background: #00ff88;
     color: #000;
     box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+}
+
+.overlay .start-hint {
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: #666;
+    margin-top: 10px;
+    margin-bottom: 20px;
 }
 
 .hidden {

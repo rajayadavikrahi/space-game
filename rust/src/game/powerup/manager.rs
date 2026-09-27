@@ -228,7 +228,7 @@ impl PowerUpManager {
         &mut self,
         player: &mut crate::game::player::Player,
         active_effects: &mut super::state::ActiveEffects,
-        _score: &mut u32,
+        light: &mut crate::game::light::Light,
     ) {
         use crate::game::collision::circles_collide;
 
@@ -247,6 +247,14 @@ impl PowerUpManager {
                     super::kind::PowerUpKind::DoubleScore => {
                         // Score multiplier is handled in collision detection
                     }
+
+                    // A lantern hands out light: full
+                    // battery and the lamp switched
+                    // back on, even if it had died.
+                    super::kind::PowerUpKind::Lantern => {
+                        light.recharge_full();
+                    }
+
                     _ => {}
                 }
 
